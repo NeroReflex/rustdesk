@@ -39,6 +39,7 @@ AppDir:
     include:
     - libc6:arm64
     - libgtk-3-0
+    - libx11-6
     - libxcb-randr0
     - libxdo3
     - libxfixes3
