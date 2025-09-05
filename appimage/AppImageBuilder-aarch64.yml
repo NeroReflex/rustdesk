@@ -40,8 +40,21 @@ AppDir:
     - libc6:arm64
     - libgtk-3-0
     - libx11-6
+    - libxcb1
+    - libxcb-composite0
+    - libxcb-damage0
+    - libxcb-dpms0
+    - libxcb-dri2-0
+    - libxcb-dri3-0
+    - libxcb-glx0
+    - libxcb-image0
+    - libxcb-keysyms1
+    - libxcb-present0
+    - libxcb-record0
     - libxcb-randr0
+    - libxcb-render0
     - libxcb-shm0
+    - libxcb-xinerama0
     - libxdo3
     - libxfixes3
     - libxcb-shape0
