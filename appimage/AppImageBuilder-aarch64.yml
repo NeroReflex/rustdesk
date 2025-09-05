@@ -41,6 +41,7 @@ AppDir:
     - libgtk-3-0
     - libx11-6
     - libxcb-randr0
+    - libxcb-shm0
     - libxdo3
     - libxfixes3
     - libxcb-shape0
