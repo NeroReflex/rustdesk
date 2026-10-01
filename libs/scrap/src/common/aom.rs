@@ -18,6 +18,10 @@ use hbb_common::{
 use base::message_proto::{Chroma, EncodedVideoFrame, EncodedVideoFrames, VideoFrame};
 use std::{ptr, slice};
 
+fn linked_abi(linked: Option<&str>, bundled: u32) -> u32 {
+    linked.and_then(|value| value.parse().ok()).unwrap_or(bundled)
+}
+
 generate_call_macro!(call_aom, false);
 generate_call_macro!(call_aom_allow_err, true);
 generate_call_ptr_macro!(call_aom_ptr);
@@ -236,7 +240,7 @@ impl EncoderApi for AomEncoder {
                     i,
                     &c,
                     flags,
-                    AOM_ENCODER_ABI_VERSION as _
+                    linked_abi(option_env!("LINKED_AOM_ENCODER_ABI"), AOM_ENCODER_ABI_VERSION) as _
                 ));
                 webrtc::set_controls(&mut ctx, &c)?;
                 Ok(Self {
@@ -475,7 +479,7 @@ impl AomDecoder {
             i,
             &cfg,
             0,
-            AOM_DECODER_ABI_VERSION as _,
+            linked_abi(option_env!("LINKED_AOM_DECODER_ABI"), AOM_DECODER_ABI_VERSION) as _,
         ));
         Ok(Self { ctx })
     }

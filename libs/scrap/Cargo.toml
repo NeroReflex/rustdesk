@@ -22,7 +22,7 @@ wayland = ["gstreamer", "gstreamer-app", "gstreamer-video", "dbus", "tracing", "
 # enable `scrap/wayland`, which is what hid this.
 drm = ["wayland", "base/wayland_probe"]
 mediacodec = ["ndk"]
-linux-pkg-config = ["dep:pkg-config"]
+linux-pkg-config = ["dep:pkg-config", "native-codecs/system"]
 hwcodec = ["dep:hwcodec"]
 vram = ["hwcodec/vram"]
 
@@ -63,6 +63,7 @@ bindgen = "0.72.1"
 pkg-config = { version = "0.3.27", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+native-codecs = { path = "../native-codecs" }
 dbus = { version = "0.9", optional = true }
 tracing = { version = "0.1", optional = true }
 gstreamer = { version = "0.16", optional = true }

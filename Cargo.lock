@@ -7439,6 +7439,7 @@ dependencies = [
  "jni",
  "lazy_static",
  "log",
+ "native-codecs",
  "ndk 0.7.0",
  "ndk-context",
  "nokhwa",
