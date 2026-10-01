@@ -33,6 +33,9 @@ use std::{
 };
 
 pub type SessionID = uuid::Uuid;
+// The generated bridge's bindgen stub names this opaque handle and does not define it.
+#[allow(non_camel_case_types)]
+pub type Dart_Handle = *mut std::ffi::c_void;
 
 lazy_static::lazy_static! {
     static ref TEXTURE_RENDER_KEY: Arc<AtomicI32> = Arc::new(AtomicI32::new(0));
