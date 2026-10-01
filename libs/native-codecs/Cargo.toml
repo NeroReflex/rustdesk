@@ -1,0 +1,14 @@
+[package]
+name = "native-codecs"
+version = "0.1.0"
+edition = "2021"
+description = "Build libvpx, libaom, Opus and libyuv from source. No vcpkg."
+links = "native_codecs"
+publish = false
+
+[features]
+# Parent asked for system libraries (pkg-config). Do not compile the tarballs.
+system = []
+
+[build-dependencies]
+cc = "1.0"

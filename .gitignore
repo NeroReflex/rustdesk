@@ -58,3 +58,5 @@ libsciter.dylib
 flutter/web/
 # libdrmtap is cloned at build time by build.py (not a submodule)
 /third_party/libdrmtap/
+# codec sources used only when the system library is absent
+libs/third_party/tarballs/*.tar.gz
