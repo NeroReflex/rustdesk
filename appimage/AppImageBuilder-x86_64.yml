@@ -42,6 +42,7 @@ AppDir:
     # We modify APPDIR_LIBRARY_PATH to use system lib first because gst crashed if not doing so, but you can try to change it.
     - libc6:amd64
     - libgtk-3-0
+    - libx11-6
     - libxcb-randr0
     - libxdo3
     - libxfixes3
