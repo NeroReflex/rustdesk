@@ -27,7 +27,7 @@ def configureKotlinJvmTarget = { Project project, String kotlinJvmTarget ->
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
         maven { url 'https://jitpack.io' }
     }
 }
