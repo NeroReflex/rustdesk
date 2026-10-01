@@ -4849,6 +4849,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "native-codecs"
+version = "0.1.0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
