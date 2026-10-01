@@ -159,6 +159,9 @@ fn generate_bindings(
     }
 
     b.generate().unwrap().write_to_file(ffi_rs).unwrap();
+    if let Some(parent) = exact_file.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
     fs::copy(ffi_rs, exact_file).ok(); // ignore failure
 }
 
@@ -226,6 +229,87 @@ fn ffmpeg() {
 }
 */
 
+fn link_vendored_codecs(include: &str) {
+    let libdir = Path::new(include)
+        .parent()
+        .unwrap_or(Path::new(include))
+        .join("lib");
+    println!("cargo:rustc-link-search=native={}", libdir.display());
+    // Each codec is the Yocto or distro shared library when that recipe is in the sysroot.
+    for name in ["yuv", "vpx", "aom", "opus"] {
+        link_system_or_static(name);
+    }
+    // Init must pass the ABI version of the library that is actually linked.
+    for (dep, key) in [
+        ("DEP_NATIVE_CODECS_VPX_ENCODER_ABI", "LINKED_VPX_ENCODER_ABI"),
+        ("DEP_NATIVE_CODECS_VPX_DECODER_ABI", "LINKED_VPX_DECODER_ABI"),
+        ("DEP_NATIVE_CODECS_AOM_ENCODER_ABI", "LINKED_AOM_ENCODER_ABI"),
+        ("DEP_NATIVE_CODECS_AOM_DECODER_ABI", "LINKED_AOM_DECODER_ABI"),
+    ] {
+        if let Ok(value) = std::env::var(dep) {
+            println!("cargo:rustc-env={key}={value}");
+        }
+    }
+    println!("cargo:rustc-link-lib=stdc++");
+    println!("cargo:rustc-link-lib=pthread");
+    println!("cargo:rustc-link-lib=m");
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    if arch == "arm" || arch.starts_with("riscv") {
+        println!("cargo:rustc-link-lib=atomic");
+    }
+}
+
+fn link_system_or_static(name: &str) {
+    let system = format!("DEP_NATIVE_CODECS_SYSTEM_{}", name.to_uppercase());
+    if std::env::var(system).ok().as_deref() == Some("1") {
+        let dir_key = format!("DEP_NATIVE_CODECS_{}_LIBDIR", name.to_uppercase());
+        if let Ok(dir) = std::env::var(dir_key) {
+            if !dir.is_empty() {
+                println!("cargo:rustc-link-search=native={dir}");
+            }
+        }
+        println!("cargo:rustc-link-lib=dylib={name}");
+    } else {
+        println!("cargo:rustc-link-lib=static={name}");
+    }
+}
+
+/// Bindings checked in under `generated/` so a Yocto build does not need libclang.
+/// Set SCRAP_REGEN_BINDINGS=1 to rebuild them from the installed codec headers.
+fn install_vendored_ffi() {
+    let include = std::env::var("DEP_NATIVE_CODECS_INCLUDE").unwrap_or_else(|_| {
+        panic!("native-codecs built the codecs but did not export an include path")
+    });
+    let includes = vec![PathBuf::from(include)];
+    install_one_ffi("vpx_ffi.h", "vpx_ffi.rs", "^[vV].*", &includes);
+    install_one_ffi("aom_ffi.h", "aom_ffi.rs", "^(aom|AOM|OBU|AV1).*", &includes);
+    install_one_ffi("yuv_ffi.h", "yuv_ffi.rs", ".*", &includes);
+}
+
+fn install_one_ffi(ffi_header: &str, generated: &str, regex: &str, includes: &[PathBuf]) {
+    let src_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let pregenerated = src_dir.join("generated").join(generated);
+    let ffi_rs = out_dir.join(generated);
+    println!("cargo:rerun-if-env-changed=SCRAP_REGEN_BINDINGS");
+    if pregenerated.exists() && env::var("SCRAP_REGEN_BINDINGS").is_err() {
+        let width = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
+        if width != "64" {
+            panic!(
+                "checked-in codec bindings are for 64-bit targets. This build is {}-bit. Set SCRAP_REGEN_BINDINGS=1 to generate bindings for this target (the build host needs libclang).",
+                width
+            );
+        }
+        println!("cargo:rerun-if-changed={}", pregenerated.display());
+        fs::copy(&pregenerated, &ffi_rs)
+            .unwrap_or_else(|e| panic!("copy {}: {}", pregenerated.display(), e));
+        return;
+    }
+    let header = src_dir.join("src").join("bindings").join(ffi_header);
+    println!("cargo:rerun-if-changed={}", header.display());
+    generate_bindings(&header, includes, &ffi_rs, &pregenerated, regex);
+}
+
 fn main() {
     // in this crate, these are also valid configurations
     println!("cargo:rustc-check-cfg=cfg(dxgi,quartz,x11)");
@@ -244,10 +328,18 @@ fn main() {
     env::remove_var("CARGO_CFG_TARGET_FEATURE");
     env::set_var("CARGO_CFG_TARGET_FEATURE", "crt-static");
 
-    find_package("libyuv");
-    gen_vcpkg_package("libvpx", "vpx_ffi.h", "vpx_ffi.rs", "^[vV].*");
-    gen_vcpkg_package("aom", "aom_ffi.h", "aom_ffi.rs", "^(aom|AOM|OBU|AV1).*");
-    gen_vcpkg_package("libyuv", "yuv_ffi.h", "yuv_ffi.rs", ".*");
+    if std::env::var("DEP_NATIVE_CODECS_VENDORED").ok().as_deref() == Some("1") {
+        let include = std::env::var("DEP_NATIVE_CODECS_INCLUDE").unwrap_or_else(|_| {
+            panic!("native-codecs built the codecs but did not export an include path")
+        });
+        link_vendored_codecs(&include);
+        install_vendored_ffi();
+    } else {
+        find_package("libyuv");
+        gen_vcpkg_package("libvpx", "vpx_ffi.h", "vpx_ffi.rs", "^[vV].*");
+        gen_vcpkg_package("aom", "aom_ffi.h", "aom_ffi.rs", "^(aom|AOM|OBU|AV1).*");
+        gen_vcpkg_package("libyuv", "yuv_ffi.h", "yuv_ffi.rs", ".*");
+    }
     // ffmpeg();
 
     if target_os == "ios" {

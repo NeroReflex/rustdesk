@@ -20,6 +20,10 @@ use std::{ptr, slice};
 generate_call_macro!(call_vpx, false);
 generate_call_ptr_macro!(call_vpx_ptr);
 
+fn linked_abi(linked: Option<&str>, bundled: u32) -> u32 {
+    linked.and_then(|value| value.parse().ok()).unwrap_or(bundled)
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum VpxVideoCodecId {
     VP8,
@@ -110,7 +114,7 @@ impl EncoderApi for VpxEncoder {
                     i,
                     &c,
                     0,
-                    VPX_ENCODER_ABI_VERSION as _
+                    linked_abi(option_env!("LINKED_VPX_ENCODER_ABI"), VPX_ENCODER_ABI_VERSION) as _
                 ));
 
                 if config.codec == VpxVideoCodecId::VP9 {
@@ -463,7 +467,7 @@ impl VpxDecoder {
             i,
             &cfg,
             0,
-            VPX_DECODER_ABI_VERSION as _,
+            linked_abi(option_env!("LINKED_VPX_DECODER_ABI"), VPX_DECODER_ABI_VERSION) as _,
         ));
         Ok(Self { ctx })
     }
